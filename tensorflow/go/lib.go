@@ -14,6 +14,6 @@
 
 package tensorflow
 
-// #cgo LDFLAGS: -ltensorflow
+// #cgo LDFLAGS: -L/Users/berset/git/gopath/src/github.com/berset/tensorflow/bazel-bin/tensorflow/ -ltensorflow
 // #cgo CFLAGS: -I${SRCDIR}/../../
 import "C"

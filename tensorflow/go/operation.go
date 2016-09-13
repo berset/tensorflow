@@ -69,6 +69,45 @@ func (b *opBuilder) SetAttrType(name string, typ DataType) {
 	C.free(unsafe.Pointer(attrName))
 }
 
+func (b *opBuilder) SetAttrString(name string, str string) {
+	attrName := C.CString(name)
+	l := len(str)
+	if l > 0 {
+		C.TF_SetAttrString(b.c, attrName, C.CString(str), C.int(len(str)))
+	} else {
+		C.TF_SetAttrString(b.c, attrName, nil, C.int(len(str)))
+	}
+	C.free(unsafe.Pointer(attrName))
+}
+
+func (b *opBuilder) SetAttrInt(name string, i int64) {
+	attrName := C.CString(name)
+	C.TF_SetAttrInt(b.c, attrName, C.int64_t(i))
+	C.free(unsafe.Pointer(attrName))
+}
+
+func (b *opBuilder) SetAttrFloat(name string, f float32) {
+	attrName := C.CString(name)
+	C.TF_SetAttrFloat(b.c, attrName, C.float(f))
+	C.free(unsafe.Pointer(attrName))
+}
+
+func (b *opBuilder) SetAttrBool(name string, truefalse bool) {
+	attrName := C.CString(name)
+	cbool := C.uchar(0)
+	if truefalse {
+		cbool = C.uchar(1)
+	}
+	C.TF_SetAttrBool(b.c, attrName, cbool)
+	C.free(unsafe.Pointer(attrName))
+}
+
+func (b *opBuilder) SetAttrShape(name string, shape []int64) {
+	attrName := C.CString(name)
+	C.TF_SetAttrShape(b.c, attrName, (*C.int64_t)(&shape[0]), C.int(len(shape)))
+	C.free(unsafe.Pointer(attrName))
+}
+
 func (b *opBuilder) AddInput(port Output) {
 	C.TF_AddInput(b.c, port.c())
 }
