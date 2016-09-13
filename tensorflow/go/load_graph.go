@@ -5,6 +5,8 @@ import "C"
 
 import (
 	"fmt"
+    "io/ioutil"
+    "github.com/golang/protobuf/proto"
     pb "github.com/berset/tensorflow/tensorflow/go/pb/tensorflow/core/framework"
 )
 
@@ -48,11 +50,20 @@ func LoadGraph(graphFileName string) (*Graph, map[string]Output, error) {
 
 	ns := make(map[string]Output)
 
-	fmt.Printf("about to load: %s\n", graphFileName)
+    by, err := ioutil.ReadFile(graphFileName)
+    if err != nil {
+        return nil, nil, err
+    }
 
-	nodes := loadNodes()
+    gd := &pb.GraphDef{}
 
-	for _, node := range nodes {
+    err = proto.UnmarshalText(string(by), gd)
+
+    if err != nil {
+        return nil, nil, err
+    }
+
+	for _, node := range gd.Node {
 		b := newOpBuilder(g, node.Op, node.Name)
 		for _, attr := range node.Attr {
             handleAttr(b, attr)
