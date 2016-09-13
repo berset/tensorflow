@@ -1,0 +1,27 @@
+node {
+  name: "term0"
+  op: "Placeholder"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT64
+    }
+  }
+}
+node {
+  name: "term1"
+  op: "Placeholder"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT64
+    }
+  }
+}
+node {
+  name: "sum"
+  op: "Add"
+  input: "term0"
+  input: "term1"
+}
+
