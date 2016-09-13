@@ -5,9 +5,9 @@ import "C"
 
 import (
 	"fmt"
-    "io/ioutil"
-    "github.com/golang/protobuf/proto"
-    pb "github.com/berset/tensorflow/tensorflow/go/pb/tensorflow/core/framework"
+	pb "github.com/berset/tensorflow/tensorflow/go/pb/tensorflow/core/framework"
+	"github.com/golang/protobuf/proto"
+	"io/ioutil"
 )
 
 func loadNodes() []pb.NodeDef {
@@ -16,11 +16,11 @@ func loadNodes() []pb.NodeDef {
 		Name: "p1",
 		Op:   "Placeholder",
 		Attr: map[string]*pb.AttrValue{
-            "dtype": &pb.AttrValue{
-                Value: &pb.AttrValue_Type{
-                    Type: pb.DataType_DT_INT64,
-			    },
-            },
+			"dtype": &pb.AttrValue{
+				Value: &pb.AttrValue_Type{
+					Type: pb.DataType_DT_INT64,
+				},
+			},
 		},
 	})
 
@@ -28,11 +28,11 @@ func loadNodes() []pb.NodeDef {
 		Name: "p2",
 		Op:   "Placeholder",
 		Attr: map[string]*pb.AttrValue{
-            "dtype": &pb.AttrValue{
-                Value: &pb.AttrValue_Type{
-                    Type: pb.DataType_DT_INT64,
-			    },
-            },
+			"dtype": &pb.AttrValue{
+				Value: &pb.AttrValue_Type{
+					Type: pb.DataType_DT_INT64,
+				},
+			},
 		},
 	})
 
@@ -50,23 +50,23 @@ func LoadGraph(graphFileName string) (*Graph, map[string]Output, error) {
 
 	ns := make(map[string]Output)
 
-    by, err := ioutil.ReadFile(graphFileName)
-    if err != nil {
-        return nil, nil, err
-    }
+	by, err := ioutil.ReadFile(graphFileName)
+	if err != nil {
+		return nil, nil, err
+	}
 
-    gd := &pb.GraphDef{}
+	gd := &pb.GraphDef{}
 
-    err = proto.UnmarshalText(string(by), gd)
+	err = proto.UnmarshalText(string(by), gd)
 
-    if err != nil {
-        return nil, nil, err
-    }
+	if err != nil {
+		return nil, nil, err
+	}
 
 	for _, node := range gd.Node {
 		b := newOpBuilder(g, node.Op, node.Name)
 		for _, attr := range node.Attr {
-            handleAttr(b, attr)
+			handleAttr(b, attr)
 		}
 		for _, input := range node.Input {
 			b.AddInput(ns[input])
@@ -85,47 +85,47 @@ func LoadGraph(graphFileName string) (*Graph, map[string]Output, error) {
 
 func handleAttr(b *opBuilder, m *pb.AttrValue) error {
 	switch x := m.Value.(type) {
-//	case *AttrValue_S:
-//		b.EncodeVarint(2<<3 | proto.WireBytes)
-//		b.EncodeRawBytes(x.S)
-//	case *AttrValue_I:
-//		b.EncodeVarint(3<<3 | proto.WireVarint)
-//		b.EncodeVarint(uint64(x.I))
-//	case *AttrValue_F:
-//		b.EncodeVarint(4<<3 | proto.WireFixed32)
-//		b.EncodeFixed32(uint64(math.Float32bits(x.F)))
-//	case *AttrValue_B:
-//		t := uint64(0)
-//		if x.B {
-//			t = 1
-//		}
-//		b.EncodeVarint(5<<3 | proto.WireVarint)
-//		b.EncodeVarint(t)
+	//	case *AttrValue_S:
+	//		b.EncodeVarint(2<<3 | proto.WireBytes)
+	//		b.EncodeRawBytes(x.S)
+	//	case *AttrValue_I:
+	//		b.EncodeVarint(3<<3 | proto.WireVarint)
+	//		b.EncodeVarint(uint64(x.I))
+	//	case *AttrValue_F:
+	//		b.EncodeVarint(4<<3 | proto.WireFixed32)
+	//		b.EncodeFixed32(uint64(math.Float32bits(x.F)))
+	//	case *AttrValue_B:
+	//		t := uint64(0)
+	//		if x.B {
+	//			t = 1
+	//		}
+	//		b.EncodeVarint(5<<3 | proto.WireVarint)
+	//		b.EncodeVarint(t)
 	case *pb.AttrValue_Type:
 		b.SetAttrType("dtype", DataType(m.GetType()))
-//	case *AttrValue_Shape:
-//		b.EncodeVarint(7<<3 | proto.WireBytes)
-//		if err := b.EncodeMessage(x.Shape); err != nil {
-//			return err
-//		}
-//	case *AttrValue_Tensor:
-//		b.EncodeVarint(8<<3 | proto.WireBytes)
-//		if err := b.EncodeMessage(x.Tensor); err != nil {
-//			return err
-//		}
-//	case *AttrValue_List:
-//		b.EncodeVarint(1<<3 | proto.WireBytes)
-//		if err := b.EncodeMessage(x.List); err != nil {
-//			return err
-//		}
-//	case *AttrValue_Func:
-//		b.EncodeVarint(10<<3 | proto.WireBytes)
-//		if err := b.EncodeMessage(x.Func); err != nil {
-//			return err
-//		}
-//	case *AttrValue_Placeholder:
-//		b.EncodeVarint(9<<3 | proto.WireBytes)
-//		b.EncodeStringBytes(x.Placeholder)
+		//	case *AttrValue_Shape:
+		//		b.EncodeVarint(7<<3 | proto.WireBytes)
+		//		if err := b.EncodeMessage(x.Shape); err != nil {
+		//			return err
+		//		}
+		//	case *AttrValue_Tensor:
+		//		b.EncodeVarint(8<<3 | proto.WireBytes)
+		//		if err := b.EncodeMessage(x.Tensor); err != nil {
+		//			return err
+		//		}
+		//	case *AttrValue_List:
+		//		b.EncodeVarint(1<<3 | proto.WireBytes)
+		//		if err := b.EncodeMessage(x.List); err != nil {
+		//			return err
+		//		}
+		//	case *AttrValue_Func:
+		//		b.EncodeVarint(10<<3 | proto.WireBytes)
+		//		if err := b.EncodeMessage(x.Func); err != nil {
+		//			return err
+		//		}
+		//	case *AttrValue_Placeholder:
+		//		b.EncodeVarint(9<<3 | proto.WireBytes)
+		//		b.EncodeStringBytes(x.Placeholder)
 	case nil:
 	default:
 		return fmt.Errorf("AttrValue.Value has unexpected type %T", x)
