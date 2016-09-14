@@ -104,12 +104,24 @@ func (b *opBuilder) SetAttrBool(name string, truefalse bool) {
 
 func (b *opBuilder) SetAttrShape(name string, shape []int64) {
 	attrName := C.CString(name)
-	C.TF_SetAttrShape(b.c, attrName, (*C.int64_t)(&shape[0]), C.int(len(shape)))
+    if len(shape) > 0 {
+	    C.TF_SetAttrShape(b.c, attrName, (*C.int64_t)(&shape[0]), C.int(len(shape)))
+    } else {
+	    C.TF_SetAttrShape(b.c, attrName, nil, C.int(len(shape)))
+    }
 	C.free(unsafe.Pointer(attrName))
 }
 
 func (b *opBuilder) AddInput(port Output) {
 	C.TF_AddInput(b.c, port.c())
+}
+
+func (b *opBuilder) AddInputList(ports []Output, n int) {
+	var c_ports []C.TF_Port
+	for _, port := range ports {
+		c_ports = append(c_ports, port.c())
+	}
+	C.TF_AddInputList(b.c, &c_ports[0], C.int(n))
 }
 
 func (b *opBuilder) Build() (*Operation, error) {

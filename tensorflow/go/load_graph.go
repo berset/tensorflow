@@ -5,6 +5,7 @@ import "C"
 
 import (
 	"bytes"
+    "encoding/binary"
 	"fmt"
 	pb "github.com/berset/tensorflow/tensorflow/go/pb/tensorflow/core/framework"
 	"github.com/golang/protobuf/proto"
@@ -31,53 +32,65 @@ func LoadGraph(graphFileName string) (*Graph, map[string]Output, error) {
 		return nil, nil, err
 	}
 
-	type DelayedBuild struct {
-		B        *opBuilder
-		InputIdx int
-		Node     *pb.NodeDef
-	}
-
-	var delayed []DelayedBuild
-
-Node:
 	for _, node := range gd.Node {
 		b := newOpBuilder(g, node.Op, node.Name)
+		attr_map := make(map[string]*pb.AttrValue)
 		for key, attr := range node.Attr {
-			err := handleAttr(b, key, attr)
+			attr_map[key] = attr
+            var err error
+            err = handleAttr(b, key, attr)
 			if err != nil {
-				log.Fatal(err)
+				log.Panic(err)
 			}
 		}
-		for i, input := range node.Input {
-			// TODO figure out what these decoration mean?
-			inpname := strings.Replace(input, ":1", "", 1)
-			inpname2 := strings.Replace(input, "^", "", 1)
+		if attr_map["N"] != nil {
+            n := int(attr_map["N"].GetI())
+            var inputs []Output
+			for _, input := range node.Input {
+                inputs = append(inputs, ns[input])
+                if len(inputs) % n == 0 {
+                    b.AddInputList(inputs, n)
+                    inputs = []Output{}
+                }
+            }
+		} else {
+			for _, input := range node.Input {
+				// TODO figure out what these decoration mean?
+				inpname := strings.Replace(input, ":1", "", 1)
+				inpname2 := strings.Replace(input, "^", "", 1)
 
-			if ns[input].Op == nil && ns[inpname].Op != nil {
-				fmt.Printf("!")
-				b.AddInput(ns[inpname])
-			} else if ns[input].Op == nil && ns[inpname2].Op != nil {
-				fmt.Printf("?")
-				//b.AddInput(ns[inpname2])
-			} else if ns[input].Op == nil {
-				delayed = append(delayed, DelayedBuild{
-					B:        b,
-					InputIdx: i,
-					Node:     node,
-				})
-				continue Node
-			} else {
-				fmt.Printf(".")
-				b.AddInput(ns[input])
+				if ns[input].Op == nil && ns[inpname].Op != nil {
+					//fmt.Printf("!")
+					b.AddInput(ns[inpname])
+				} else if ns[input].Op == nil && ns[inpname2].Op != nil {
+					// "^" seems to mean input less
+					//fmt.Printf("?")
+					//b.AddInput(ns[inpname2])
+				} else if ns[input].Op != nil {
+					//fmt.Printf(".")
+					b.AddInput(ns[input])
+				} else {
+                    return nil, nil, fmt.Errorf("input not found: ", input)
+				}
 			}
 		}
 		op, err := b.Build()
 		if err != nil {
+            fmt.Println(err)
 			input := node.Input[0]
 			inpname := strings.Replace(input, ":1", "", 1)
 			inpname2 := strings.Replace(input, "^", "", 1)
-			fmt.Println("")
+			fmt.Println("ERRORROZZ")
+			fmt.Println(node.Name)
+			fmt.Println("--------------------")
+			fmt.Println("attrs:")
+			for key, attr := range node.Attr {
+				fmt.Println(key)
+				fmt.Println(attr)
+			}
+			fmt.Println("--------------------")
 			fmt.Println(node.Input[0])
+			fmt.Println("inp0")
 			fmt.Println(ns[node.Input[0]])
 			fmt.Println(ns[inpname])
 			fmt.Println(ns[inpname2])
@@ -88,69 +101,6 @@ Node:
 		}
 		ns[node.Name] = Output{op, 0}
 	}
-
-	fmt.Println("delayed")
-	fmt.Println(len(delayed))
-	fmt.Println("dadada\n\n--------------------------------------------------------------\n")
-
-	var delayed2 []DelayedBuild
-
-Node2:
-	for _, de := range delayed {
-		// TODO FIXME
-		b := de.B
-		node := de.Node
-		for i, input := range node.Input {
-			if i >= de.InputIdx {
-				inpname := strings.Replace(input, ":1", "", 1)
-				if ns[input].Op == nil &&
-					ns[inpname].Op != nil {
-					fmt.Println("can fix!!!!")
-					fmt.Println("can fix!!!!")
-					fmt.Println("can fix!!!!")
-					fmt.Println("can fix!!!!")
-					fmt.Println("can fix!!!!")
-					fmt.Println("can fix!!!!")
-					fmt.Println("can fix!!!!")
-					fmt.Println("can fix!!!!")
-					fmt.Println("can fix!!!!")
-					b.AddInput(ns[inpname])
-				} else if ns[input].Op == nil {
-					delayed2 = append(delayed2, DelayedBuild{
-						B:        b,
-						InputIdx: i,
-						Node:     node,
-					})
-					continue Node2
-					b.AddInput(ns[input])
-				}
-			}
-		}
-		op, err := b.Build()
-		if err != nil {
-			fmt.Println("err")
-			fmt.Println(err)
-			//return Output{}, err
-		}
-		ns[node.Name] = Output{op, 0}
-		delayed2 = append(delayed2, de)
-	}
-
-	//fmt.Println("delayed2")
-	//fmt.Println(len(delayed2))
-	//fmt.Println("dadada\n\n--------------------------------------------------------------\n")
-	//for j := 0; j < len(delayed); j += 1 {
-	//    fmt.Println(delayed[j].Node.Name)
-	//    for _, inp := range(delayed[j].Node.Input) {
-	//        fmt.Printf("i: %s\n", inp)
-	//        fmt.Println(ns[inp])
-	//        fmt.Println(ns["cross_entropy_loss/SparseSoftmaxCrossEntropyWithLogits/SparseSoftmaxCrossEntropyWithLogits"])
-	//    }
-	//}
-
-	fmt.Println("del, del")
-	fmt.Println(len(delayed))
-	fmt.Println(len(delayed2))
 
 	return g, ns, nil
 }
@@ -172,27 +122,18 @@ func handleAttr(b *opBuilder, key string, m *pb.AttrValue) error {
 		for _, dim := range m.GetShape().GetDim() {
 			shape = append(shape, dim.Size)
 		}
-		if len(shape) > 0 {
-			b.SetAttrShape(key, shape)
-		} else {
-			shape = append(shape, -1)
-			b.SetAttrShape(key, shape)
-		}
+        b.SetAttrShape(key, shape)
 	case *pb.AttrValue_Tensor:
-		b.SetAttrTensor(key, t2t(m.GetTensor()))
+        tensor, err := t2t(m.GetTensor())
+        if err != nil {
+            return err
+        }
+		b.SetAttrTensor(key, tensor)
 	case *pb.AttrValue_List:
-		//		b.EncodeVarint(1<<3 | proto.WireBytes)
-		//		if err := b.EncodeMessage(x.List); err != nil {
-		//			return err
-		//		}
 	case *pb.AttrValue_Func:
-		//		b.EncodeVarint(10<<3 | proto.WireBytes)
-		//		if err := b.EncodeMessage(x.Func); err != nil {
-		//			return err
-		//		}
 	case *pb.AttrValue_Placeholder:
-		//		b.EncodeVarint(9<<3 | proto.WireBytes)
-		//		b.EncodeStringBytes(x.Placeholder)
+        // TODO
+        return fmt.Errorf("TODO - left to implement: %T", x)
 	case nil:
 	default:
 		return fmt.Errorf("AttrValue.Value has unexpected type %T", x)
@@ -200,13 +141,49 @@ func handleAttr(b *opBuilder, key string, m *pb.AttrValue) error {
 	return nil
 }
 
-func t2t(in *pb.TensorProto) *Tensor {
+func t2t(in *pb.TensorProto) (*Tensor, error) {
 	out := &Tensor{}
 	out.dt = DataType(in.Dtype)
 	out.shape = []int64{}
 	for _, dim := range in.TensorShape.GetDim() {
 		out.shape = append(out.shape, dim.Size)
 	}
-	out.buf = bytes.NewBuffer(in.TensorContent)
-	return out
+    buf := new(bytes.Buffer)
+    var err error
+    switch in.Dtype {
+    case pb.DataType_DT_FLOAT:
+        err = binary.Write(buf, binary.LittleEndian, in.FloatVal)
+	case pb.DataType_DT_DOUBLE:
+        err = binary.Write(buf, binary.LittleEndian, in.DoubleVal)
+
+	case pb.DataType_DT_INT32:
+	case pb.DataType_DT_UINT8:
+	case pb.DataType_DT_INT16:
+	case pb.DataType_DT_INT8:
+        err = binary.Write(buf, binary.LittleEndian, in.IntVal)
+
+	case pb.DataType_DT_STRING:
+        err = binary.Write(buf, binary.LittleEndian, in.StringVal)
+	case pb.DataType_DT_INT64:
+        err = binary.Write(buf, binary.LittleEndian, in.Int64Val)
+	case pb.DataType_DT_BOOL:
+        err = binary.Write(buf, binary.LittleEndian, in.BoolVal)
+	case pb.DataType_DT_HALF:
+	case pb.DataType_DT_COMPLEX64:
+	case pb.DataType_DT_QINT8:
+	case pb.DataType_DT_QUINT8:
+	case pb.DataType_DT_QINT32:
+	case pb.DataType_DT_BFLOAT16:
+	case pb.DataType_DT_QINT16:
+	case pb.DataType_DT_QUINT16:
+	case pb.DataType_DT_UINT16:
+	case pb.DataType_DT_COMPLEX128:
+    default:
+        err = fmt.Errorf("TODO")
+    }
+    if err != nil {
+        return nil, err
+    }
+    out.buf = buf
+	return out, nil
 }
