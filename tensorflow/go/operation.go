@@ -104,11 +104,11 @@ func (b *opBuilder) SetAttrBool(name string, truefalse bool) {
 
 func (b *opBuilder) SetAttrShape(name string, shape []int64) {
 	attrName := C.CString(name)
-    if len(shape) > 0 {
-	    C.TF_SetAttrShape(b.c, attrName, (*C.int64_t)(&shape[0]), C.int(len(shape)))
-    } else {
-	    C.TF_SetAttrShape(b.c, attrName, nil, C.int(len(shape)))
-    }
+	if len(shape) > 0 {
+		C.TF_SetAttrShape(b.c, attrName, (*C.int64_t)(&shape[0]), C.int(len(shape)))
+	} else {
+		C.TF_SetAttrShape(b.c, attrName, nil, C.int(len(shape)))
+	}
 	C.free(unsafe.Pointer(attrName))
 }
 
