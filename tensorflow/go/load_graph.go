@@ -33,58 +33,60 @@ func InitWeights(g *Graph, ns map[string]Output, jsonfile string) ([]*Operation,
 	var nwParams NetworkParams
 	err = json.Unmarshal(jsonBlob, &nwParams)
 	if err != nil {
-		fmt.Println("error:", err)
 		return nil, err
 	}
-    var ops []*Operation
+	var ops []*Operation
 	for _, nwParam := range nwParams {
 		f1 := FloatMatrix1D{}
 		f2 := FloatMatrix2D{}
-        realName := strings.Replace(nwParam.Name, ":0", "", 1)
-		fmt.Println(realName)
-        constName := fmt.Sprintf("%s/init/Const", realName)
+		realName := strings.Replace(nwParam.Name, ":0", "", 1)
+		constName := fmt.Sprintf("%s/init/Const", realName)
 		constOp := newOpBuilder(g, "Const", constName)
 		if err := json.Unmarshal(nwParam.Matrix, &f1); err == nil {
 			constOp.SetAttrType("dtype", DataType(pb.DataType_DT_FLOAT))
-	        buf := new(bytes.Buffer)
+			buf := new(bytes.Buffer)
 			for i := 0; i < len(f1); i++ {
 				err = binary.Write(buf, nativeEndian, f1[i])
 			}
-            t := &Tensor{
-                buf: buf,
-                dt: DataType(pb.DataType_DT_FLOAT),
-                shape: []int64{int64(len(f1))},
-                }
+			t := &Tensor{
+				buf:   buf,
+				dt:    DataType(pb.DataType_DT_FLOAT),
+				shape: []int64{int64(len(f1))},
+			}
 			constOp.SetAttrTensor("value", t)
-            op, err := constOp.Build()
-            fmt.Println(err)
-            ns[constName] = Output{op, 0}
-			fmt.Println("f1")
+			op, err := constOp.Build()
+			if err != nil {
+				return nil, err
+			}
+			ns[constName] = Output{op, 0}
 		} else if err := json.Unmarshal(nwParam.Matrix, &f2); err == nil {
 			constOp.SetAttrType("dtype", DataType(pb.DataType_DT_FLOAT))
-	        buf := new(bytes.Buffer)
+			buf := new(bytes.Buffer)
 			for i := 0; i < len(f2); i++ {
-			    for j := 0; j < len(f2[i]); j++ {
-				    err = binary.Write(buf, nativeEndian, f2[i][j])
-                }
+				for j := 0; j < len(f2[i]); j++ {
+					err = binary.Write(buf, nativeEndian, f2[i][j])
+				}
 			}
-            t := &Tensor{
-                buf: buf,
-                dt: DataType(pb.DataType_DT_FLOAT),
-                shape: []int64{int64(len(f2)), int64(len(f2[0]))},
-                }
+			t := &Tensor{
+				buf:   buf,
+				dt:    DataType(pb.DataType_DT_FLOAT),
+				shape: []int64{int64(len(f2)), int64(len(f2[0]))},
+			}
 			constOp.SetAttrTensor("value", t)
-            op, err := constOp.Build()
-            fmt.Println(err)
-            ns[constName] = Output{op, 0}
-			fmt.Println("f2")
+			op, err := constOp.Build()
+			if err != nil {
+				return nil, err
+			}
+			ns[constName] = Output{op, 0}
 		}
 		assignOp := newOpBuilder(g, "Assign", fmt.Sprintf("%s/init/Assign", realName))
-        assignOp.AddInput(ns[realName])
-        assignOp.AddInput(ns[constName])
-        asop, err := assignOp.Build()
-        fmt.Println(err)
-        ops = append(ops, asop)
+		assignOp.AddInput(ns[realName])
+		assignOp.AddInput(ns[constName])
+		asop, err := assignOp.Build()
+		if err != nil {
+			return nil, err
+		}
+		ops = append(ops, asop)
 	}
 	return ops, nil
 }
@@ -151,28 +153,7 @@ func LoadGraph(graphFileName string) (*Graph, map[string]Output, error) {
 		}
 		op, err := b.Build()
 		if err != nil {
-			fmt.Println(err)
-			input := node.Input[0]
-			inpname := strings.Replace(input, ":1", "", 1)
-			inpname2 := strings.Replace(input, "^", "", 1)
-			fmt.Println("ERRORROZZ")
-			fmt.Println(node.Name)
-			fmt.Println("--------------------")
-			fmt.Println("attrs:")
-			for key, attr := range node.Attr {
-				fmt.Println(key)
-				fmt.Println(attr)
-			}
-			fmt.Println("--------------------")
-			fmt.Println(node.Input[0])
-			fmt.Println("inp0")
-			fmt.Println(ns[node.Input[0]])
-			fmt.Println(ns[inpname])
-			fmt.Println(ns[inpname2])
-			fmt.Println(node.Input)
-			fmt.Println("err")
-			log.Panic(err)
-			//return Output{}, err
+			return nil, nil, err
 		}
 		ns[node.Name] = Output{op, 0}
 	}
